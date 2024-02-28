@@ -1,4 +1,6 @@
-`super-openai` gives your openai client superpowers with improved logging and request/response caching.
+_Logging and caching superpowers for your openai client_
+
+## Introduction
 
 It aims to solve the following problems:
 
@@ -7,11 +9,27 @@ It aims to solve the following problems:
 - Caching repeated identical requests
 - Intermediate result inspection for complex chains/agents
 
-### Installation & Usage
+### Why super-openai?
 
-Installation is as simple as `pip install super-openai` with `pip` or `poetry add super-openai` with `poetry`.
+When building LLM-powered chains, conversational bots, RAG pipelines or agents, `super-openai` helps in both development and production:
 
-To start using `super-openai` call `init_super_openai` - this will monkey-patch the relevant functions on the `OpenAI` object. Then you can use the `openai` library as usual with all the superpowers of `super-openai`
+**In development**
+
+- Never wait minutes when you re-run your code because all previous responses are cached in-memory.
+- In complex chains or agents, quickly inspect the sequence of requests and responses to understand which response was incorrect and isolate the source of error
+- When using third-party libs like `guardrails`, `langchain` or `instructor` they often modify your prompts or make additional requests under the hood, eating up tokens and adding latency. `super-openai` helps make these explicit and give you full visibility.
+
+**In production**
+
+- Speed up responses by serving LLM calls from cache. Currently `super-openai` only supports in-memory caching, but we'll support other cache destinations in the near future.
+- Easily capture logs of openai requests and responses, including inputs/outputs, token usage, and latency. Log them to your preferred observability tool. Currently we only log openai requests, but we'll add more detailed tracing in the future.
+- 100% private and secure: `super-openai` runs entirely inside your environment and never sends any data outside.
+
+### Installation & basic usage
+
+Run `pip install super-openai` or `poetry add super-openai`
+
+To initialize super-openai run
 
 ```
 from super_openai import init_super_openai
@@ -19,9 +37,11 @@ from super_openai import init_super_openai
 init_super_openai()
 ```
 
+This will monkey-patch the relevant functions in the `OpenAI` class. Then you can use `openai` library as usual with all the superpowers of super-openai
+
 **Basic logging example**
 
-```
+```python
 from openai import OpenAI
 from super_openai import init_logger, init_super_openai
 
@@ -38,7 +58,8 @@ with init_logger() as logger:
     print(log)
 ```
 
-This would print
+<details>
+<summary> Expand to see output</summary>
 
 ```
 Messages:
@@ -56,9 +77,11 @@ Metadata:
 Cached: False
 ```
 
+</details>
+
 You can also avoid the context manager and directly manage starting and stopping loggers.
 
-```
+```python
 logger = init_logger()
 client.chat.completions.create(
   model="gpt-4-1106-preview",
@@ -68,6 +91,9 @@ client.chat.completions.create(
 print(logger.logs[0])
 logger.end()
 ```
+
+<details>
+<summary> Expand to see output</summary>
 
 ```
 Messages:
@@ -86,34 +112,70 @@ Cached: True
 **************************************************
 ```
 
+</details>
+
 Notice the second request's latency is almost 0 and `Cached` is `True`
 
-### Why super-openai?
+For advanced usage and examples see below.
 
-When building LLM-powered chains, conversational bots, RAG pipelines or agents, `super-openai` helps in both development and production:
+## Logging
 
-In development:
+super-openai wraps the `OpenAI.chat.completions.create` and `AsyncOpenAI.chat.completions.create` functions and stores logs into a `super_openai.Logger` object. The following fields are captured and logged:
 
-- Never wait minutes when you re-run your code because all previous responses are cached in-memory.
-- In complex chains or agents, quickly inspect the sequence of requests and responses to understand which response was incorrect and isolate the source of error
-- When using third-party libs like `guardrails`, `langchain` or `instructor` they often modify your prompts or make additional requests under the hood, eating up tokens and adding latency. `super-openai` helps make these explicit and give you full visibility.
+- Input prompt(s)
+- Input parameters (model, temperature, etc.)
+- Response(s)
+- Metadata
+  - Token usage (prompt and response)
+  - Latency
 
-Production use cases:
+**Getting Started**
+TODO
 
-- Speed up responses by serving LLM calls from cache. Currently `super-openai` only supports in-memory caching, but we'll support other cache destinations in the near future.
-- Easily capture logs of openai requests and responses, including inputs/outputs, token usage, and latency. Log them to your preferred observability tool. Currently we only log openai requests, but we'll add more detailed tracing in the future.
-- 100% private and secure: `super-openai` runs entirely inside your environment and never sends any data outside.
+**Statistics**
+TODO
 
-### Logging
+**Advanced Logging**
+TODO
 
-### Caching
+**Why logging?**
+Logging the inputs and outputs of OpenAI calls is crucial for several reasons:
 
-### Future work
+- Visibility: It provides clear insight into the actual requests and prompts being made. This transparency is key to understanding how your application interacts with OpenAI's API, ensuring that the prompts sent are as intended.
 
+- Performance Analysis: By logging, you can monitor the cost (in terms of token usage) and the response time of your OpenAI calls. This information is vital for optimizing the efficiency of your pipelines/agents, helping you to identify bottlenecks and reduce operational costs.
+
+- Debugging and Error Isolation: When unexpected or incorrect results occur, logs are invaluable. They allow you to trace back through the sequence of requests and responses, making it easier to pinpoint exactly where and why an error was introduced. This can significantly speed up the debugging process, saving time and effort in development and production environments.
+
+## Caching
+
+`super-openai` caches all requests in-memory using `cachetools` and returns the cached response next time if all request parameters are exactly the same and the same `OpenAI` client is used.
+
+Caching is automatically enabled when you called `init_super_openai` and applies both to regular `chat.completion.create` and async `chat.completion.create` requests. It works in both streaming and regular mode.
+
+You can disable caching or change the cache size (default 1000) when initializating super-openai:
+
+```python
+from super_openai import init_super_openai
+
+init_super_openai(enable_caching=True, cache_size=100)
+```
+
+**Why caching?**
+
+Caching repeated requests speeds up development. Often you end up changing one part of the pipeline and having to run the entire pipeline on the same dataset. All the requests are re-run, which wastes time and costs money. Instead, caching ensures only the parts that change actually make new requests.
+
+Cache hits may be less frequent in production, but are still useful for improving latency and reducing cost, especially in consumer products where users can accidentally re-do the same request.
+
+## Future work
+
+- Log function calling and tool usage responses
 - Simplifying retries
 - Tracing
 - Disk and remote caching
--
+- Thread-safe caching
+- Integrate with native python logging
+- Integrate with 3rd party hosted logging services
 
 ## Contributing
 

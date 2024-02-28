@@ -2,6 +2,7 @@ from .state import (
     init_logger,
     current_logger,
     _internal_reset_global_state,
+    Logger
 )
 
 from .cache import init_cache
