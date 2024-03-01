@@ -8,7 +8,7 @@ super-openai was built to solve the following problems:
 
 **Cost and latency tracking**. How much did my requests cost? How long did they take? These are important factors that affect the quality and feasibility of your software. Especially when you're chaining multiple LLM calls or building complex agent flows, it's important keep track of performance and understand which step is the bottleneck. This is useful both in development and production.
 
-**Repeated identical requests**. We often find ourselves re-running the same pipeline with a minor edit and having to re-execute every LLM call to see the new output. This unnecessarily slows down the development and iteration cycle. Also, in production this is a missed opportuntity to provide faster responses and reduce cost.
+**Repeated identical requests**. During development, we often find ourselves changing one part of a pipeline and having to re-execute every LLM call on the entire dataset to see the new output. This unnecessarily slows down the development and iteration cycle. Caching ensures only the parts that change actually make new requests.
 
 **Debugging complex chains/agents**. Complex chains or agents go wrong because of cascading failure. To debug the failure we need to inspect intermediate results and identify the source of error, then improve the prompt, try a different model, etc. It starts with logging and eyeballing the sequence of requests.
 
@@ -18,7 +18,7 @@ super-openai was built to solve the following problems:
 
 Run `pip install super-openai` or `poetry add super-openai`
 
-To initialize super-openai run
+To initialize super-openai, before initializing your openai client, run
 
 ```python
 from super_openai import init_super_openai
@@ -68,6 +68,7 @@ Cached: False
 
 </details>
 
+<br>
 You can also avoid the context manager and directly manage starting and stopping loggers.
 
 ```python
@@ -104,29 +105,114 @@ Cached: True
 
 </details>
 
-Notice the second request's latency is almost 0 and `Cached` is `True`
+<br>
 
-For advanced usage and examples see below.
+Notice the second request's latency is almost 0 and `Cached` is `True`
 
 ## Logging
 
 super-openai wraps the `OpenAI.chat.completions.create` and `AsyncOpenAI.chat.completions.create` functions and stores logs into a `super_openai.Logger` object. The following fields are captured and logged:
 
-- Input prompt(s)
-- Input parameters (model, temperature, etc.)
-- Response(s)
-- Metadata
-  - Token usage (prompt and response)
-  - Latency
+**Basic logging**
 
-**Getting Started**
-TODO
+To start logging, call `init_logger()` either as a context manager `with init_logger() as logger` or as a simple function call. If not using a context manager, make sure to called `logger.end()`.
+
+Every openai chat completion request will not be logged and logs will be stored in `logger.logs`. Each log is a `ChatCompletionLog` object containing the following fields:
+
+- `input_messages`: a list of input prompts
+- `input_args`: an object containing request arguments (model, streaming, temperature, etc.)
+- `output`: a list of outputs (completion responses) produced by the LLM request
+- `metadata`: metadata about the request (`ChatCompletionLogMetadata` object)
+- `cached`: whether the response was returned from cache
+
+**Streaming and async**
+
+Logging works in streaming mode (setting `stream=True` in the chat completion request) as well as when using the async chat completion api.
+
+In streaming mode, the output is a list of streamed chunks rather than a list of completion responses. All other fields are the same. The log object is a `StreamingChatCompletionLog` object.
 
 **Statistics**
-TODO
 
-**Advanced Logging**
-TODO
+When you run a chain or agent with multiple LLM calls, it's useful to look at summary statistics over all the calls rather than individual ones.
+
+To look at summary statistics, call `logger.summary_statistics()`
+
+```
+with init_logger() as logger:
+  client.chat.completions.create(
+    model="gpt-4-1106-preview",
+    messages=[
+      {"role": "user", "content": "What's the capital of France?"}
+    ]
+  )
+  print(logger.summary_statistics())
+```
+
+<details>
+<summary> Expand to see output</summary>
+
+```
+Summary Statistics:
+Number of Calls: 1
+Number Cached: 1
+Prompt Tokens: 14
+Completion Tokens: 7
+Total Tokens: 21
+Prompt Tokens by Model: {'gpt-4-1106-preview': 14}
+Completion Tokens by Model: {'gpt-4-1106-preview': 7}
+Total Tokens by Model: {'gpt-4-1106-preview': 21}
+Total Latency: 3.314018249511719e-05
+Average Latency: 3.314018249511719e-05
+Average Latency (Cached): 3.314018249511719e-05
+Average Latency (Uncached): 0
+```
+
+</details>
+
+**Using with other libraries**
+super-openai is fully compatible with `langchain`, `llama-index`, `instructor`, `guidance`, `DSpy` and most other third party libraries.
+
+Here's an example of using super-openai with `langchain`:
+
+```python
+from super_openai import init_super_openai, init_logger
+from langchain.prompts import PromptTemplate
+from langchain_experimental.smart_llm import SmartLLMChain
+from langchain_openai import ChatOpenAI
+
+init_super_openai()
+
+hard_question = "I have a 12 liter jug and a 6 liter jug.\
+I want to measure 6 liters. How do I do it?"
+prompt = PromptTemplate.from_template(hard_question)
+llm = ChatOpenAI(temperature=0, model_name="gpt-3.5-turbo")
+
+with init_logger() as logger:
+  chain = SmartLLMChain(llm=llm, prompt=prompt,
+                      n_ideas=2,
+                      verbose=True)
+  result = chain.run({})
+
+print(logger.summary_statistics())
+```
+
+Output:
+
+```
+Summary Statistics:
+Number of Calls: 4
+Number Cached: 1
+Prompt Tokens: 1292
+Completion Tokens: 714
+Total Tokens: 2006
+Prompt Tokens by Model: {'gpt-3.5-turbo': 1292}
+Completion Tokens by Model: {'gpt-3.5-turbo': 714}
+Total Tokens by Model: {'gpt-3.5-turbo': 2006}
+Total Latency: 10.285882234573364
+Average Latency: 2.571470558643341
+Average Latency (Cached): 4.9114227294921875e-05
+Average Latency (Uncached): 3.4286110401153564
+```
 
 ## Caching
 
@@ -141,12 +227,6 @@ from super_openai import init_super_openai
 
 init_super_openai(enable_caching=True, cache_size=100)
 ```
-
-**Why caching?**
-
-Caching repeated requests speeds up development. Often you end up changing one part of the pipeline and having to run the entire pipeline on the same dataset. All the requests are re-run, which wastes time and costs money. Instead, caching ensures only the parts that change actually make new requests.
-
-Cache hits may be less frequent in production, but are still useful for improving latency and reducing cost, especially in consumer products where users can accidentally re-do the same request.
 
 ## Future work
 
