@@ -137,7 +137,7 @@ When you run a chain or agent with multiple LLM calls, it's useful to look at su
 
 To look at summary statistics, call `logger.summary_statistics()`
 
-```
+```python
 with init_logger() as logger:
   client.chat.completions.create(
     model="gpt-4-1106-preview",
@@ -169,10 +169,25 @@ Average Latency (Uncached): 0
 
 </details>
 
-**Using with other libraries**
+## Caching
+
+`super-openai` caches all requests in-memory using `cachetools` and returns the cached response next time if all request parameters are exactly the same and the same `OpenAI` client is used.
+
+Caching is automatically enabled when you called `init_super_openai` and applies both to regular `chat.completion.create` and async `chat.completion.create` requests. It works in both streaming and regular mode.
+
+You can disable caching or change the cache size (default 1000) when initializating super-openai:
+
+```python
+from super_openai import init_super_openai
+
+init_super_openai(enable_caching=True, cache_size=100)
+```
+
+## Using with langchain, etc.
+
 super-openai is fully compatible with `langchain`, `llama-index`, `instructor`, `guidance`, `DSpy` and most other third party libraries.
 
-Here's an example of using super-openai with `langchain`:
+This is particularly useful when you're doing local development with `langchain` and want to quickly inspect your chain runs, or understand what requests were made under the hood. For example:
 
 ```python
 from super_openai import init_super_openai, init_logger
@@ -212,20 +227,6 @@ Total Latency: 10.285882234573364
 Average Latency: 2.571470558643341
 Average Latency (Cached): 4.9114227294921875e-05
 Average Latency (Uncached): 3.4286110401153564
-```
-
-## Caching
-
-`super-openai` caches all requests in-memory using `cachetools` and returns the cached response next time if all request parameters are exactly the same and the same `OpenAI` client is used.
-
-Caching is automatically enabled when you called `init_super_openai` and applies both to regular `chat.completion.create` and async `chat.completion.create` requests. It works in both streaming and regular mode.
-
-You can disable caching or change the cache size (default 1000) when initializating super-openai:
-
-```python
-from super_openai import init_super_openai
-
-init_super_openai(enable_caching=True, cache_size=100)
 ```
 
 ## Future work
