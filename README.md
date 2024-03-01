@@ -2,28 +2,17 @@ _Logging and caching superpowers for your openai client_
 
 ## Introduction
 
-It aims to solve the following problems:
+super-openai was built to solve the following problems:
 
-- Prompt and request visibility
-- Token usage and latency counting across multiple requests
-- Caching repeated identical requests
-- Intermediate result inspection for complex chains/agents
+**Prompt and request visibility**. Many popular libraries like `langchain`, `guardrails`, `instructor` modify your prompts or even make additional requests under the hood. Sometimes this is useful, sometimes it's counter-productive. We believe it's good to adopt a "[show me the prompt](https://hamel.dev/blog/posts/prompt/)" attitude.
 
-### Why super-openai?
+**Cost and latency tracking**. How much did my requests cost? How long did they take? These are important factors that affect the quality and feasibility of your software. Especially when you're chaining multiple LLM calls or building complex agent flows, it's important keep track of performance and understand which step is the bottleneck. This is useful both in development and production.
 
-When building LLM-powered chains, conversational bots, RAG pipelines or agents, `super-openai` helps in both development and production:
+**Repeated identical requests**. We often find ourselves re-running the same pipeline with a minor edit and having to re-execute every LLM call to see the new output. This unnecessarily slows down the development and iteration cycle. Also, in production this is a missed opportuntity to provide faster responses and reduce cost.
 
-**In development**
+**Debugging complex chains/agents**. Complex chains or agents go wrong because of cascading failure. To debug the failure we need to inspect intermediate results and identify the source of error, then improve the prompt, try a different model, etc. It starts with logging and eyeballing the sequence of requests.
 
-- Never wait minutes when you re-run your code because all previous responses are cached in-memory.
-- In complex chains or agents, quickly inspect the sequence of requests and responses to understand which response was incorrect and isolate the source of error
-- When using third-party libs like `guardrails`, `langchain` or `instructor` they often modify your prompts or make additional requests under the hood, eating up tokens and adding latency. `super-openai` helps make these explicit and give you full visibility.
-
-**In production**
-
-- Speed up responses by serving LLM calls from cache. Currently `super-openai` only supports in-memory caching, but we'll support other cache destinations in the near future.
-- Easily capture logs of openai requests and responses, including inputs/outputs, token usage, and latency. Log them to your preferred observability tool. Currently we only log openai requests, but we'll add more detailed tracing in the future.
-- 100% private and secure: `super-openai` runs entirely inside your environment and never sends any data outside.
+**Privacy, security and speed**. Many great tools exist to help you solve the above by sending your data to a remote server. But sometimes you need the data to stay local. Other times, you want to do some quick and dirty development without having to set up an api key, sign up for a service, understand their library and UI.
 
 ### Installation & basic usage
 
@@ -31,7 +20,7 @@ Run `pip install super-openai` or `poetry add super-openai`
 
 To initialize super-openai run
 
-```
+```python
 from super_openai import init_super_openai
 
 init_super_openai()
@@ -88,7 +77,8 @@ client.chat.completions.create(
   messages=[
   {"role": "user", "content": "What's the capital of France?"}
   ])
-print(logger.logs[0])
+for log in logger.logs:
+  print(log)
 logger.end()
 ```
 
@@ -137,15 +127,6 @@ TODO
 
 **Advanced Logging**
 TODO
-
-**Why logging?**
-Logging the inputs and outputs of OpenAI calls is crucial for several reasons:
-
-- Visibility: It provides clear insight into the actual requests and prompts being made. This transparency is key to understanding how your application interacts with OpenAI's API, ensuring that the prompts sent are as intended.
-
-- Performance Analysis: By logging, you can monitor the cost (in terms of token usage) and the response time of your OpenAI calls. This information is vital for optimizing the efficiency of your pipelines/agents, helping you to identify bottlenecks and reduce operational costs.
-
-- Debugging and Error Isolation: When unexpected or incorrect results occur, logs are invaluable. They allow you to trace back through the sequence of requests and responses, making it easier to pinpoint exactly where and why an error was introduced. This can significantly speed up the debugging process, saving time and effort in development and production environments.
 
 ## Caching
 
