@@ -51,19 +51,21 @@ with init_logger() as logger:
 <summary> Expand to see output</summary>
 
 ```
-Messages:
-- user: What's the capital of France?
-Arguments:
-- model: gpt-4-1106-preview
-Output:
-- assistant: The capital of France is Paris.
-Metadata:
-- Prompt tokens: 14
-- Completion tokens: 7
-- Total tokens: 21
-- Start time: 1708985826.1323142
-- Latency: 0.8096299171447754
-Cached: False
++-----------+----------------------------------------------+
+| Messages  | - user: What's the capital of France?        |
++-----------+----------------------------------------------+
+| Arguments | - model: gpt-4-1106-preview                  |
++-----------+----------------------------------------------+
+| Output    | - assistant: The capital of France is Paris. |
++-----------+----------------------------------------------+
+| Metadata  | - Prompt tokens: 14                          |
+|           | - Completion tokens: 7                       |
+|           | - Total tokens: 21                           |
+|           | - Start time: 1709679680.8683982             |
+|           | - Latency: 0.9150938987731934                |
++-----------+----------------------------------------------+
+| Cached    | False                                        |
++-----------+----------------------------------------------+
 ```
 
 </details>
@@ -87,20 +89,21 @@ logger.end()
 <summary> Expand to see output</summary>
 
 ```
-Messages:
-- user: What's the capital of France?
-Arguments:
-- model: gpt-4-1106-preview
-Output:
-- assistant: The capital of France is Paris.
-Metadata:
-- Prompt tokens: 14
-- Completion tokens: 7
-- Total tokens: 21
-- Start time: 1708985829.87182
-- Latency: 8.106231689453125e-05
-Cached: True
-**************************************************
++-----------+----------------------------------------------+
+| Messages  | - user: What's the capital of France?        |
++-----------+----------------------------------------------+
+| Arguments | - model: gpt-4-1106-preview                  |
++-----------+----------------------------------------------+
+| Output    | - assistant: The capital of France is Paris. |
++-----------+----------------------------------------------+
+| Metadata  | - Prompt tokens: 14                          |
+|           | - Completion tokens: 7                       |
+|           | - Total tokens: 21                           |
+|           | - Start time: 1709679731.876042              |
+|           | - Latency: 3.62396240234375e-05              |
++-----------+----------------------------------------------+
+| Cached    | True                                         |
++-----------+----------------------------------------------+
 ```
 
 </details>
@@ -152,19 +155,23 @@ with init_logger() as logger:
 <summary> Expand to see output</summary>
 
 ```
-Summary Statistics:
-Number of Calls: 1
-Number Cached: 1
-Prompt Tokens: 14
-Completion Tokens: 7
-Total Tokens: 21
-Prompt Tokens by Model: {'gpt-4-1106-preview': 14}
-Completion Tokens by Model: {'gpt-4-1106-preview': 7}
-Total Tokens by Model: {'gpt-4-1106-preview': 21}
-Total Latency: 3.314018249511719e-05
-Average Latency: 3.314018249511719e-05
-Average Latency (Cached): 3.314018249511719e-05
-Average Latency (Uncached): 0
++----------------------------+----------------------------+
+|      Number of Calls       |             1              |
+|       Number Cached        |             1              |
++----------------------------+----------------------------+
+|       Prompt Tokens        |             14             |
+|     Completion Tokens      |             7              |
+|        Total Tokens        |             21             |
++----------------------------+----------------------------+
+|   Prompt Tokens by Model   | {'gpt-4-1106-preview': 14} |
+| Completion Tokens by Model | {'gpt-4-1106-preview': 7}  |
+|   Total Tokens by Model    | {'gpt-4-1106-preview': 21} |
++----------------------------+----------------------------+
+|       Total Latency        |    3.62396240234375e-05    |
+|      Average Latency       |    3.62396240234375e-05    |
+|  Average Latency (Cached)  |    3.62396240234375e-05    |
+| Average Latency (Uncached) |             0              |
++----------------------------+----------------------------+
 ```
 
 </details>
@@ -200,7 +207,7 @@ init_super_openai()
 hard_question = "I have a 12 liter jug and a 6 liter jug.\
 I want to measure 6 liters. How do I do it?"
 prompt = PromptTemplate.from_template(hard_question)
-llm = ChatOpenAI(temperature=0, model_name="gpt-3.5-turbo")
+llm = ChatOpenAI(temperature=0.8, model_name="gpt-3.5-turbo")
 
 with init_logger() as logger:
   chain = SmartLLMChain(llm=llm, prompt=prompt,
@@ -214,19 +221,23 @@ print(logger.summary_statistics())
 Output:
 
 ```
-Summary Statistics:
-Number of Calls: 4
-Number Cached: 1
-Prompt Tokens: 1292
-Completion Tokens: 714
-Total Tokens: 2006
-Prompt Tokens by Model: {'gpt-3.5-turbo': 1292}
-Completion Tokens by Model: {'gpt-3.5-turbo': 714}
-Total Tokens by Model: {'gpt-3.5-turbo': 2006}
-Total Latency: 10.285882234573364
-Average Latency: 2.571470558643341
-Average Latency (Cached): 4.9114227294921875e-05
-Average Latency (Uncached): 3.4286110401153564
++----------------------------+-------------------------+
+|      Number of Calls       |            4            |
+|       Number Cached        |            0            |
++----------------------------+-------------------------+
+|       Prompt Tokens        |           1183          |
+|     Completion Tokens      |           591           |
+|        Total Tokens        |           1774          |
++----------------------------+-------------------------+
+|   Prompt Tokens by Model   | {'gpt-3.5-turbo': 1183} |
+| Completion Tokens by Model |  {'gpt-3.5-turbo': 591} |
+|   Total Tokens by Model    | {'gpt-3.5-turbo': 1774} |
++----------------------------+-------------------------+
+|       Total Latency        |    8.826239109039307    |
+|      Average Latency       |    2.2065597772598267   |
+|  Average Latency (Cached)  |            0            |
+| Average Latency (Uncached) |    2.2065597772598267   |
++----------------------------+-------------------------+
 ```
 
 ## Future work
@@ -245,4 +256,4 @@ Contributions to the Super OpenAI Python Wrapper are welcome! Please refer to th
 
 ## License
 
-The Super OpenAI Python Wrapper is released under the MIT License. See the `LICENSE` file for more details.
+`super-openai` is released under the MIT License. See the `LICENSE` file for more details.

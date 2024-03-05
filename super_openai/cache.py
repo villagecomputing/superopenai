@@ -27,6 +27,11 @@ def get_cached(fn):
         return fn
 
     def cached_fn(self, *args, **kwargs):
+        # Don't cache if temperature is non-zero because outputs are non-deterministic
+        # Note: OpenAI sets temperature to 0 by default, but other providers may not
+        temperature = kwargs.get("temperature", 0)
+        if temperature != 0:
+            return fn(self, *args, **kwargs), False
         key = custom_key(self, *args, **kwargs)
         if key in _cache:
             was_cached = True
@@ -45,6 +50,11 @@ async def get_cached_async(fn):
         return fn
 
     async def cached_fn(self, *args, **kwargs):
+        # Don't cache if temperature is non-zero because outputs are non-deterministic
+        # Note: OpenAI sets temperature to 0 by default, but other providers may not
+        temperature = kwargs.get("temperature", 0)
+        if temperature != 0:
+            return fn(self, *args, **kwargs), False
         key = custom_key(self, *args, **kwargs)
         if key in _cache:
             was_cached = True

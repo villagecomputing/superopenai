@@ -14,6 +14,7 @@ from openai.types.chat import (
 from openai.types.chat.chat_completion import Choice
 from openai.types.chat.chat_completion_chunk import Choice as ChunkChoice
 import httpx
+from prettytable import PrettyTable
 
 ModelType = Union[
     str,
@@ -80,21 +81,25 @@ class SummaryStatistics:
     avg_latency_uncached: float
 
     def __str__(self) -> str:
-        return (
-            f"Summary Statistics:\n"
-            f"Number of Calls: {self.num_calls}\n"
-            f"Number Cached: {self.num_cached}\n"
-            f"Prompt Tokens: {self.prompt_tokens}\n"
-            f"Completion Tokens: {self.completion_tokens}\n"
-            f"Total Tokens: {self.total_tokens}\n"
-            f"Prompt Tokens by Model: {self.prompt_tokens_by_model}\n"
-            f"Completion Tokens by Model: {self.completion_tokens_by_model}\n"
-            f"Total Tokens by Model: {self.total_tokens_by_model}\n"
-            f"Total Latency: {self.total_latency}\n"
-            f"Average Latency: {self.avg_latency}\n"
-            f"Average Latency (Cached): {self.avg_latency_cached}\n"
-            f"Average Latency (Uncached): {self.avg_latency_uncached}"
-        )
+        table = PrettyTable()
+        table.header = False
+        table.horizontal_char = "-"
+        table.add_row(["Number of Calls", self.num_calls])
+        table.add_row(["Number Cached", self.num_cached], divider=True)
+        table.add_row(["Prompt Tokens", self.prompt_tokens])
+        table.add_row(["Completion Tokens", self.completion_tokens])
+        table.add_row(["Total Tokens", self.total_tokens], divider=True)
+        table.add_row(["Prompt Tokens by Model", self.prompt_tokens_by_model])
+        table.add_row(["Completion Tokens by Model",
+                      self.completion_tokens_by_model])
+        table.add_row(["Total Tokens by Model",
+                      self.total_tokens_by_model], divider=True)
+        table.add_row(["Total Latency", self.total_latency])
+        table.add_row(["Average Latency", self.avg_latency])
+        table.add_row(["Average Latency (Cached)", self.avg_latency_cached])
+        table.add_row(["Average Latency (Uncached)",
+                      self.avg_latency_uncached])
+        return table.get_string()
 
 
 @dataclasses.dataclass
@@ -150,26 +155,28 @@ class ChatCompletionLog:
         )
 
     def __str__(self) -> str:
-        result = ["Messages:"]
+        table = PrettyTable()
+        table.header = False
+        table.align = "l"
+        messages = []
         for msg in self.input_messages:
-            result.append(f"- {msg['role']}: {msg['content']}")
+            messages.append(f"- {msg['role']}: {msg['content']}")
+        table.add_row(["Messages", "\n".join(messages)], divider=True)
 
-        result.append("Arguments:")
+        args = []
         for arg, value in self.input_args.items():
-            result.append(f"- {arg}: {value}")
+            args.append(f"- {arg}: {value}")
+        table.add_row(["Arguments", "\n".join(args)], divider=True)
 
-        result.append("Output:")
+        outputs = []
         for choice in self.output:
-            result.append(
+            outputs.append(
                 f"- {choice.message.role}: {choice.message.content}")
+        table.add_row(["Output", "\n".join(outputs)], divider=True)
+        table.add_row(["Metadata", str(self.metadata)], divider=True)
+        table.add_row(["Cached", str(self.cached)])
 
-        result.append("Metadata:")
-        result.append(str(self.metadata))
-
-        result.append("Cached: " + str(self.cached))
-        result.append("**************************************************")
-
-        return "\n".join(result)
+        return table.get_string()
 
 
 @dataclasses.dataclass
@@ -202,27 +209,28 @@ class StreamingChatCompletionLog():
         )
 
     def __str__(self) -> str:
-        result = ["Messages:"]
+        table = PrettyTable()
+        table.header = False
+        table.align = "l"
+        msgs = []
         for msg in self.input_messages:
-            result.append(f"- {msg['role']}: {msg['content']}")
+            msgs.append(f"- {msg['role']}: {msg['content']}")
+        table.add_row(["Messages", "\n".join(msgs)], divider=True)
 
-        result.append("Arguments:")
+        args = []
         for arg, value in self.input_args.items():
-            result.append(f"- {arg}: {value}")
+            args.append(f"- {arg}: {value}")
+        table.add_row(["Arguments", "\n".join(args)], divider=True)
 
-        result.append("Output:")
+        outputs = []
         num_responses = len(self.output[0])
         for index in range(num_responses):
             concatenated_content = "".join(
                 [chunk_list[index].delta.content or "" if
                  index < len(chunk_list) else ""
                  for chunk_list in self.output])
-            result.append(f"- {concatenated_content}")
-
-        result.append("Metadata:")
-        result.append(str(self.metadata))
-
-        result.append("Cached: " + str(self.cached))
-        result.append("**************************************************")
-
-        return "\n".join(result)
+            outputs.append(f"- {concatenated_content}")
+        table.add_row(["Output", "\n".join(outputs)], divider=True)
+        table.add_row(["Metadata", str(self.metadata)], divider=True)
+        table.add_row(["Cached", str(self.cached)], divider=True)
+        return table.get_string()
