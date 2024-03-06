@@ -1,4 +1,11 @@
-_Logging and caching superpowers for your openai client_
+# super-openai: logging and caching superpowers for the openai sdk
+
+_super-openai is a minimal convenience library for logging and caching LLM requests and responses for visibility and rapid iteration during development._
+
+[Star us on Github!](https://github.com/villagecomputing/super-openai)
+
+[![Twitter Follow](https://img.shields.io/twitter/follow/villagecompute?style=social)](https://twitter.com/villagecompute)
+[![Downloads](https://img.shields.io/pypi/dm/super-openai.svg)](https://pypi.python.org/pypi/super-openai)
 
 ## Introduction
 
