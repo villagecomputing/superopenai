@@ -280,8 +280,6 @@ class StreamingChatCompletionLog():
             args.append(f"- {arg}: {value}")
         table.add_row(["Arguments", "\n".join(args)], divider=True)
 
-        print("Output", self.output)
-
         recovered, _ = StreamingChatCompletionLog._recover_outputs(self.output)
         outputs = []
         for r in recovered:

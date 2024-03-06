@@ -1,20 +1,32 @@
+import os
 import contextvars
 import asyncio
+from datetime import datetime
 from typing import List, Union
 from openai.resources.chat.completions import Completions, AsyncCompletions
 from .types import *
 from .wrap_openai import wrap_create, wrap_acreate
 
 
+DEFAULT_LOGFILE = f"./logs/{datetime.date(datetime.now())}.log"
+
+
 class Logger:
-    def __init__(self, set_current: bool = True):
+    def __init__(self,  filepath: str = None, set_current: bool = True):
         self.logs: List[Union[ChatCompletionLog,
                               StreamingChatCompletionLog]] = []
+        if filepath:
+            os.makedirs(os.path.dirname(filepath), exist_ok=True)
+            self.filestream = open(filepath, "a")
+            self.filestream.write(
+                f"Starting super-openai logger at {datetime.now()}\n")
         if set_current:
             self.start()
 
     def log(self, log: Union[ChatCompletionLog, StreamingChatCompletionLog]):
         self.logs.append(log)
+        if self.filestream and not self.filestream.closed:
+            self.filestream.write(str(log) + "\n")
 
     def summary_statistics(self) -> SummaryStatistics:
         num_calls = len(self.logs)
@@ -67,10 +79,16 @@ class Logger:
         )
 
     def start(self):
+        if self.filestream and self.filestream.closed:
+            self.filestream.open()
         if current_logger() != self:
             self._context_token = _state.current_logger.set(self)
 
     def end(self):
+        if self.filestream and not self.filestream.closed:
+            self.filestream.write(
+                f"Ending super-openai logger at {datetime.now()}\n\n")
+            self.filestream.close()
         if current_logger() == self:
             _state.current_logger.reset(self._context_token)
 
@@ -122,8 +140,8 @@ class SuperOpenAIState:
             "super_openai_current_logger", default=NOOP_LOGGER)
 
 
-def init_logger():
-    return Logger()
+def init_logger(filepath: str = DEFAULT_LOGFILE):
+    return Logger(filepath)
 
 
 def current_logger() -> Logger:

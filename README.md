@@ -132,6 +132,17 @@ Every openai chat completion request will not be logged and logs will be stored 
 
 Inside the `metadata` field of each log you will find information about how many prompt and completions tokens were used, what the total cost was and the latency, ie. time between request being sent and response being received.
 
+Cost is calculated based on prompt and completion token prices tokens defined in `estimator.py`. Only OpenAI models have pre-defined prices. If you're using non-OpenAI models, you can optionally specify a price dictionary when initializing `super-openai`. Prices are specified per 1M tokens in a tuple representing prompt and completion tokens respectively.
+
+```python
+from super_openai import init_super_openai
+
+init_super_openai(cost_dict={
+  'mistralai/Mixtral-8x7B-Instruct-v0.1': [0.5, 1.0]
+})
+
+```
+
 **Streaming and async**
 
 Logging works in streaming mode (setting `stream=True` in the chat completion request) as well as when using the async chat completion api.
