@@ -1,7 +1,6 @@
 import time
 import dataclasses
-from collections import defaultdict
-from typing import Dict, List, Union, Iterable, Optional, overload, TypedDict
+from typing import Dict, List, Union, Iterable, Optional, TypedDict
 from typing_extensions import Literal
 from openai._types import NOT_GIVEN, Body, Query, Headers, NotGiven
 from openai.types.chat import (
@@ -16,6 +15,7 @@ from openai.types.chat.chat_completion import Choice
 from openai.types.chat.chat_completion_chunk import Choice as ChunkChoice
 import httpx
 from prettytable import PrettyTable
+from super_openai.estimator import num_tokens_from_messages, get_cost
 
 ModelType = Union[
     str,
@@ -70,6 +70,7 @@ class ChatCompletionCreateOptionalArgs(TypedDict, total=False):
 class SummaryStatistics:
     num_calls: int
     num_cached: int
+    cost: float
     prompt_tokens: int
     completion_tokens: int
     total_tokens: int
@@ -87,6 +88,7 @@ class SummaryStatistics:
         table.horizontal_char = "-"
         table.add_row(["Number of Calls", self.num_calls])
         table.add_row(["Number Cached", self.num_cached], divider=True)
+        table.add_row(["Cost", f"${self.cost}"], divider=True)
         table.add_row(["Prompt Tokens", self.prompt_tokens])
         table.add_row(["Completion Tokens", self.completion_tokens])
         table.add_row(["Total Tokens", self.total_tokens], divider=True)
@@ -110,9 +112,12 @@ class ChatCompletionLogMetadata:
     prompt_tokens: Optional[int] = None
     completion_tokens: Optional[int] = None
     total_tokens: Optional[int] = None
+    cost: Optional[float] = None
 
     def __str__(self) -> str:
         result = []
+        if self.cost is not None:
+            result.append(f"- Cost: ${self.cost}")
         if self.prompt_tokens is not None:
             result.append(f"- Prompt tokens: {self.prompt_tokens}")
         if self.completion_tokens is not None:
@@ -140,16 +145,20 @@ class ChatCompletionLog:
                cached: bool,
                start_time: float
                ):
+        prompt_tokens = response.usage.prompt_tokens
+        completion_tokens = response.usage.completion_tokens
+        model = params.get("model")
         return cls(
             input_messages=messages,
             input_args=params,
             output=response.choices,
             metadata=ChatCompletionLogMetadata(
-                prompt_tokens=response.usage.prompt_tokens,
-                completion_tokens=response.usage.completion_tokens,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
                 total_tokens=response.usage.total_tokens,
                 start_time=start_time,
-                latency=time.time() - start_time
+                latency=time.time() - start_time,
+                cost=get_cost(prompt_tokens, completion_tokens, model)
             ),
             cached=cached
         )
@@ -202,18 +211,60 @@ class StreamingChatCompletionLog():
                cached: bool,
                start_time: float
                ):
+        output = [r.choices for r in all_responses]
+        model = params.get("model")
+        prompt_tokens = num_tokens_from_messages(messages, model)
+        _, completion_tokens = StreamingChatCompletionLog._recover_outputs(
+            output)
         return cls(
             input_messages=messages,
             input_args=params,
-            output=[r.choices for r in all_responses],
+            output=output,
             metadata=ChatCompletionLogMetadata(
-                # The openai api doesn't return token counts for streaming
-                # TODO: implement manual token count calculation for streaming
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                total_tokens=prompt_tokens + completion_tokens,
                 start_time=start_time,
-                latency=time.time() - start_time
+                latency=time.time() - start_time,
+                cost=get_cost(prompt_tokens, completion_tokens, model)
             ),
             cached=cached
         )
+
+    @staticmethod
+    def _recover_outputs(output: List[List[ChunkChoice]]):
+        # NOTE: completion tokens are probably being undercounted right now
+        completion_tokens = 0
+        max_index = max(
+            choice.index for chunk in output for choice in chunk)
+        recovered = [{} for _ in range(max_index + 1)]
+        for chunk in output:
+            for choice in chunk:
+                idx = choice.index
+                delta = choice.delta
+                if delta.content:
+                    completion_tokens += 1
+                    recovered[idx]['content'] = recovered[idx].get(
+                        'content', "") + delta.content
+                if delta.role:
+                    recovered[idx]['role'] = delta.role
+                if delta.function_call:
+                    recovered[idx]['function_call'] = delta.function_call
+                if delta.tool_calls:
+                    if not recovered[idx].get('tool_calls'):
+                        recovered[idx]['tool_calls'] = [
+                            {}] * len(delta.tool_calls)
+                    for tool_delta in delta.tool_calls:
+                        completion_tokens += 1
+                        if tool_delta.function:
+                            tool_idx = tool_delta.index
+                            if tool_delta.function.name:
+                                recovered[idx]['tool_calls'][tool_idx]['name'] = tool_delta.function.name
+                            if tool_delta.function.arguments:
+                                recovered[idx]['tool_calls'][tool_idx]['arguments'] = recovered[idx]['tool_calls'][tool_idx].get(
+                                    "arguments", "") + tool_delta.function.arguments
+
+        return recovered, completion_tokens
 
     def __str__(self) -> str:
         table = PrettyTable()
@@ -229,33 +280,9 @@ class StreamingChatCompletionLog():
             args.append(f"- {arg}: {value}")
         table.add_row(["Arguments", "\n".join(args)], divider=True)
 
-        max_index = max(
-            choice.index for chunk in self.output for choice in chunk)
-        recovered = [{} for _ in range(max_index + 1)]
-        for chunk in self.output:
-            for choice in chunk:
-                idx = choice.index
-                delta = choice.delta
-                if delta.content:
-                    recovered[idx]['content'] = recovered[idx].get(
-                        'content', "") + delta.content
-                if delta.role:
-                    recovered[idx]['role'] = delta.role
-                if delta.function_call:
-                    recovered[idx]['function_call'] = delta.function_call
-                if delta.tool_calls:
-                    if not recovered[idx].get('tool_calls'):
-                        recovered[idx]['tool_calls'] = [
-                            {}] * len(delta.tool_calls)
-                    for tool_delta in delta.tool_calls:
-                        if tool_delta.function:
-                            tool_idx = tool_delta.index
-                            if tool_delta.function.name:
-                                recovered[idx]['tool_calls'][tool_idx]['name'] = tool_delta.function.name
-                            if tool_delta.function.arguments:
-                                recovered[idx]['tool_calls'][tool_idx]['arguments'] = recovered[idx]['tool_calls'][tool_idx].get(
-                                    "arguments", "") + tool_delta.function.arguments
+        print("Output", self.output)
 
+        recovered, _ = StreamingChatCompletionLog._recover_outputs(self.output)
         outputs = []
         for r in recovered:
             if r.get('content'):

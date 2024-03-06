@@ -1,4 +1,5 @@
 import contextvars
+import asyncio
 from typing import List, Union
 from openai.resources.chat.completions import Completions, AsyncCompletions
 from .types import *
@@ -18,6 +19,8 @@ class Logger:
     def summary_statistics(self) -> SummaryStatistics:
         num_calls = len(self.logs)
         num_cached = sum(log.cached for log in self.logs)
+        cost = sum(
+            log.metadata.cost for log in self.logs if log.metadata.cost is not None)
         prompt_tokens = sum(
             log.metadata.prompt_tokens for log in self.logs if log.metadata.prompt_tokens is not None)
         completion_tokens = sum(
@@ -50,6 +53,7 @@ class Logger:
         return SummaryStatistics(
             num_calls=num_calls,
             num_cached=num_cached,
+            cost=cost,
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
             total_tokens=total_tokens,
@@ -104,6 +108,7 @@ class SuperOpenAIState:
 
     def _wrap(self):
         if self.wrapped:
+            # Prevent double-wrapping
             return
         create_fn = Completions.create
         acreate_fn = AsyncCompletions.create
@@ -123,6 +128,19 @@ def init_logger():
 
 def current_logger() -> Logger:
     return _state.current_logger.get()
+
+
+def logged(fn):
+    if asyncio.iscoroutinefunction(fn):
+        async def async_wrapper(*args, **kwargs):
+            async with init_logger() as logger:
+                return await fn(*args, **kwargs), logger
+        return async_wrapper
+    else:
+        def wrapper(*args, **kwargs):
+            with init_logger() as logger:
+                return fn(*args, **kwargs), logger
+        return wrapper
 
 
 _state: Optional[SuperOpenAIState] = None

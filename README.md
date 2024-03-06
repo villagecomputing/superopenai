@@ -125,14 +125,22 @@ Every openai chat completion request will not be logged and logs will be stored 
 - `input_messages`: a list of input prompts
 - `input_args`: an object containing request arguments (model, streaming, temperature, etc.)
 - `output`: a list of outputs (completion responses) produced by the LLM request
-- `metadata`: metadata about the request (`ChatCompletionLogMetadata` object)
+- `metadata`: metadata about the request
 - `cached`: whether the response was returned from cache
+
+**Token usage, cost and latency**
+
+Inside the `metadata` field of each log you will find information about how many prompt and completions tokens were used, what the total cost was and the latency, ie. time between request being sent and response being received.
 
 **Streaming and async**
 
 Logging works in streaming mode (setting `stream=True` in the chat completion request) as well as when using the async chat completion api.
 
 In streaming mode, the output is a list of streamed chunks rather than a list of completion responses. All other fields are the same. The log object is a `StreamingChatCompletionLog` object.
+
+**Function Calling and Tools**
+
+`super-openai` works out of the box when using function calling or tools. The functions called and their arguments will be captured and printed in the `output` field. This works in streaming mode too.
 
 **Statistics**
 
@@ -242,17 +250,16 @@ Output:
 
 ## Future work
 
-- Log function calling and tool usage responses
+- Port to TypeScript
 - Simplifying retries
 - Tracing
 - Disk and remote caching
 - Thread-safe caching
-- Integrate with native python logging
 - Integrate with 3rd party hosted logging services
 
 ## Contributing
 
-Contributions to the Super OpenAI Python Wrapper are welcome! Please refer to the `CONTRIBUTING.md` file for guidelines on how to contribute to this project.
+`super-openai` is free, open-source, and licensed under the MIT license. We welcome contributions from the community. You can always contribute by [giving us a star](https://github.com/villagecomputing/super-openai) :)
 
 ## License
 
