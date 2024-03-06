@@ -21,6 +21,9 @@ ipykernel = "^6.29.2"
 langchain = "^0.1.11"
 langchain-openai = "^0.0.8"
 langchain-experimental = "^0.0.53"
+langgraph = "^0.0.26"
+pandas = "^2.2.1"
+matplotlib = "^3.8.3"
 
 [build-system]
 requires = ["poetry-core"]

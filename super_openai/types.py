@@ -1,5 +1,6 @@
 import time
 import dataclasses
+from collections import defaultdict
 from typing import Dict, List, Union, Iterable, Optional, overload, TypedDict
 from typing_extensions import Literal
 from openai._types import NOT_GIVEN, Body, Query, Headers, NotGiven
@@ -142,7 +143,6 @@ class ChatCompletionLog:
         return cls(
             input_messages=messages,
             input_args=params,
-            # for now, we don't handle tools/function calls
             output=response.choices,
             metadata=ChatCompletionLogMetadata(
                 prompt_tokens=response.usage.prompt_tokens,
@@ -170,8 +170,15 @@ class ChatCompletionLog:
 
         outputs = []
         for choice in self.output:
-            outputs.append(
-                f"- {choice.message.role}: {choice.message.content}")
+            content = None
+            if choice.message.content:
+                content = f"- {choice.message.role}: {choice.message.content}"
+            elif choice.message.tool_calls:
+                content = f"- {choice.message.role}: {choice.message.tool_calls}"
+            elif choice.message.function_call:
+                content = f"- {choice.message.role}: {choice.message.function_call}"
+            if content:
+                outputs.append(content)
         table.add_row(["Output", "\n".join(outputs)], divider=True)
         table.add_row(["Metadata", str(self.metadata)], divider=True)
         table.add_row(["Cached", str(self.cached)])
@@ -222,14 +229,45 @@ class StreamingChatCompletionLog():
             args.append(f"- {arg}: {value}")
         table.add_row(["Arguments", "\n".join(args)], divider=True)
 
+        max_index = max(
+            choice.index for chunk in self.output for choice in chunk)
+        recovered = [{} for _ in range(max_index + 1)]
+        for chunk in self.output:
+            for choice in chunk:
+                idx = choice.index
+                delta = choice.delta
+                if delta.content:
+                    recovered[idx]['content'] = recovered[idx].get(
+                        'content', "") + delta.content
+                if delta.role:
+                    recovered[idx]['role'] = delta.role
+                if delta.function_call:
+                    recovered[idx]['function_call'] = delta.function_call
+                if delta.tool_calls:
+                    if not recovered[idx].get('tool_calls'):
+                        recovered[idx]['tool_calls'] = [
+                            {}] * len(delta.tool_calls)
+                    for tool_delta in delta.tool_calls:
+                        if tool_delta.function:
+                            tool_idx = tool_delta.index
+                            if tool_delta.function.name:
+                                recovered[idx]['tool_calls'][tool_idx]['name'] = tool_delta.function.name
+                            if tool_delta.function.arguments:
+                                recovered[idx]['tool_calls'][tool_idx]['arguments'] = recovered[idx]['tool_calls'][tool_idx].get(
+                                    "arguments", "") + tool_delta.function.arguments
+
         outputs = []
-        num_responses = len(self.output[0])
-        for index in range(num_responses):
-            concatenated_content = "".join(
-                [chunk_list[index].delta.content or "" if
-                 index < len(chunk_list) else ""
-                 for chunk_list in self.output])
-            outputs.append(f"- {concatenated_content}")
+        for r in recovered:
+            if r.get('content'):
+                outputs.append(f"- {r.get('role')}: {r.get('content')}")
+            if r.get('function_call'):
+                outputs.append(
+                    f"- {r.get('role')}: {r.get('function_call')}")
+            if r.get('tool_calls'):
+                for tool in r.get('tool_calls'):
+                    outputs.append(
+                        f"- {r.get('role')}: ToolCall {tool})")
+
         table.add_row(["Output", "\n".join(outputs)], divider=True)
         table.add_row(["Metadata", str(self.metadata)], divider=True)
         table.add_row(["Cached", str(self.cached)], divider=True)
