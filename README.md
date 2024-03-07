@@ -1,15 +1,15 @@
-# super-openai: logging and caching superpowers for the openai sdk
+# superopenai: logging and caching superpowers for the openai sdk
 
-_super-openai is a minimal convenience library for logging and caching LLM requests and responses for visibility and rapid iteration during development._
+_superopenai is a minimal convenience library for logging and caching LLM requests and responses for visibility and rapid iteration during development._
 
-[Star us on Github!](https://github.com/villagecomputing/super-openai)
+[Star us on Github!](https://github.com/villagecomputing/superopenai)
 
 [![Twitter Follow](https://img.shields.io/twitter/follow/villagecompute?style=social)](https://twitter.com/villagecompute)
-[![Downloads](https://img.shields.io/pypi/dm/super-openai.svg)](https://pypi.python.org/pypi/super-openai)
+[![Downloads](https://img.shields.io/pypi/dm/superopenai.svg)](https://pypi.python.org/pypi/superopenai)
 
 ## Introduction
 
-super-openai was built to solve the following problems:
+superopenai was built to solve the following problems:
 
 **Prompt and request visibility**. Many popular libraries like `langchain`, `guardrails`, `instructor` modify your prompts or even make additional requests under the hood. Sometimes this is useful, sometimes it's counter-productive. We believe it's good to adopt a "[show me the prompt](https://hamel.dev/blog/posts/prompt/)" attitude.
 
@@ -23,25 +23,25 @@ super-openai was built to solve the following problems:
 
 ### Installation & basic usage
 
-Run `pip install super-openai` or `poetry add super-openai`
+Run `pip install superopenai` or `poetry add superopenai`
 
-To initialize super-openai, before initializing your openai client, run
+To initialize superopenai, before initializing your openai client, run
 
 ```python
-from super_openai import init_super_openai
+from superopenai import init_superopenai
 
-init_super_openai()
+init_superopenai()
 ```
 
-This will monkey-patch the relevant functions in the `OpenAI` class. Then you can use `openai` library as usual with all the superpowers of super-openai
+This will monkey-patch the relevant functions in the `OpenAI` class. Then you can use `openai` library as usual with all the superpowers of superopenai
 
 **Basic logging example**
 
 ```python
 from openai import OpenAI
-from super_openai import init_logger, init_super_openai
+from superopenai import init_logger, init_superopenai
 
-init_super_openai()
+init_superopenai()
 client = OpenAI()
 
 with init_logger() as logger:
@@ -121,7 +121,7 @@ Notice the second request's latency is almost 0 and `Cached` is `True`
 
 ## Logging
 
-super-openai wraps the `OpenAI.chat.completions.create` and `AsyncOpenAI.chat.completions.create` functions and stores logs into a `super_openai.Logger` object. The following fields are captured and logged:
+superopenai wraps the `OpenAI.chat.completions.create` and `AsyncOpenAI.chat.completions.create` functions and stores logs into a `superopenai.Logger` object. The following fields are captured and logged:
 
 **Basic logging**
 
@@ -139,12 +139,12 @@ Every openai chat completion request will not be logged and logs will be stored 
 
 Inside the `metadata` field of each log you will find information about how many prompt and completions tokens were used, what the total cost was and the latency, ie. time between request being sent and response being received.
 
-Cost is calculated based on prompt and completion token prices tokens defined in `estimator.py`. Only OpenAI models have pre-defined prices. If you're using non-OpenAI models, you can optionally specify a price dictionary when initializing `super-openai`. Prices are specified per 1M tokens in a tuple representing prompt and completion tokens respectively.
+Cost is calculated based on prompt and completion token prices tokens defined in `estimator.py`. Only OpenAI models have pre-defined prices. If you're using non-OpenAI models, you can optionally specify a price dictionary when initializing `superopenai`. Prices are specified per 1M tokens in a tuple representing prompt and completion tokens respectively.
 
 ```python
-from super_openai import init_super_openai
+from superopenai import init_superopenai
 
-init_super_openai(cost_dict={
+init_superopenai(cost_dict={
   'mistralai/Mixtral-8x7B-Instruct-v0.1': [0.5, 1.0]
 })
 
@@ -158,7 +158,7 @@ In streaming mode, the output is a list of streamed chunks rather than a list of
 
 **Function Calling and Tools**
 
-`super-openai` works out of the box when using function calling or tools. The functions called and their arguments will be captured and printed in the `output` field. This works in streaming mode too.
+`superopenai` works out of the box when using function calling or tools. The functions called and their arguments will be captured and printed in the `output` field. This works in streaming mode too.
 
 **Statistics**
 
@@ -204,31 +204,31 @@ with init_logger() as logger:
 
 ## Caching
 
-`super-openai` caches all requests in-memory using `cachetools` and returns the cached response next time if all request parameters are exactly the same and the same `OpenAI` client is used.
+`superopenai` caches all requests in-memory using `cachetools` and returns the cached response next time if all request parameters are exactly the same and the same `OpenAI` client is used.
 
-Caching is automatically enabled when you called `init_super_openai` and applies both to regular `chat.completion.create` and async `chat.completion.create` requests. It works in both streaming and regular mode.
+Caching is automatically enabled when you called `init_superopenai` and applies both to regular `chat.completion.create` and async `chat.completion.create` requests. It works in both streaming and regular mode.
 
-You can disable caching or change the cache size (default 1000) when initializating super-openai:
+You can disable caching or change the cache size (default 1000) when initializating superopenai:
 
 ```python
-from super_openai import init_super_openai
+from superopenai import init_superopenai
 
-init_super_openai(enable_caching=True, cache_size=100)
+init_superopenai(enable_caching=True, cache_size=100)
 ```
 
 ## Using with langchain, etc.
 
-super-openai is fully compatible with `langchain`, `llama-index`, `instructor`, `guidance`, `DSpy` and most other third party libraries.
+superopenai is fully compatible with `langchain`, `llama-index`, `instructor`, `guidance`, `DSpy` and most other third party libraries.
 
 This is particularly useful when you're doing local development with `langchain` and want to quickly inspect your chain runs, or understand what requests were made under the hood. For example:
 
 ```python
-from super_openai import init_super_openai, init_logger
+from superopenai import init_superopenai, init_logger
 from langchain.prompts import PromptTemplate
 from langchain_experimental.smart_llm import SmartLLMChain
 from langchain_openai import ChatOpenAI
 
-init_super_openai()
+init_superopenai()
 
 hard_question = "I have a 12 liter jug and a 6 liter jug.\
 I want to measure 6 liters. How do I do it?"
@@ -277,8 +277,8 @@ Output:
 
 ## Contributing
 
-`super-openai` is free, open-source, and licensed under the MIT license. We welcome contributions from the community. You can always contribute by [giving us a star](https://github.com/villagecomputing/super-openai) :)
+`superopenai` is free, open-source, and licensed under the MIT license. We welcome contributions from the community. You can always contribute by [giving us a star](https://github.com/villagecomputing/superopenai) :)
 
 ## License
 
-`super-openai` is released under the MIT License. See the `LICENSE` file for more details.
+`superopenai` is released under the MIT License. See the `LICENSE` file for more details.

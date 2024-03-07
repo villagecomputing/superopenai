@@ -15,7 +15,7 @@ from openai.types.chat.chat_completion import Choice
 from openai.types.chat.chat_completion_chunk import Choice as ChunkChoice
 import httpx
 from prettytable import PrettyTable
-from super_openai.estimator import num_tokens_from_messages, get_cost
+from superopenai.estimator import num_tokens_from_messages, get_cost
 
 ModelType = Union[
     str,
