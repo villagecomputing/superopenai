@@ -6,12 +6,12 @@ from .state import (
 )
 
 
-def init_super_openai(
+def init_superopenai(
         enable_caching: bool = True,
         cache_size: int = 1000,
         cost_dict: dict = {}) -> None:
     """
-    Initializes the super_openai library with optional caching and cost estimation settings.
+    Initializes the superopenai library with optional caching and cost estimation settings.
 
     Args:
         enable_caching (bool): Flag to enable or disable caching of API responses. Defaults to True.

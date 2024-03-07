@@ -19,7 +19,7 @@ class Logger:
             os.makedirs(os.path.dirname(filepath), exist_ok=True)
             self.filestream = open(filepath, "a")
             self.filestream.write(
-                f"Starting super-openai logger at {datetime.now()}\n")
+                f"Starting superopenai logger at {datetime.now()}\n")
         if set_current:
             self.start()
 
@@ -87,7 +87,7 @@ class Logger:
     def end(self):
         if self.filestream and not self.filestream.closed:
             self.filestream.write(
-                f"Ending super-openai logger at {datetime.now()}\n\n")
+                f"Ending superopenai logger at {datetime.now()}\n\n")
             self.filestream.close()
         if current_logger() == self:
             _state.current_logger.reset(self._context_token)
@@ -118,7 +118,7 @@ NOOP_LOGGER = NoopLogger()
 class SuperOpenAIState:
     def __init__(self):
         self.current_logger = contextvars.ContextVar(
-            "super_openai_current_logger", default=NOOP_LOGGER)
+            "superopenai_current_logger", default=NOOP_LOGGER)
         self.wrapped = False
         self.create_fn = None
         self.acreate_fn = None
@@ -137,7 +137,7 @@ class SuperOpenAIState:
 
     def reset(self):
         self.current_logger = contextvars.ContextVar(
-            "super_openai_current_logger", default=NOOP_LOGGER)
+            "superopenai_current_logger", default=NOOP_LOGGER)
 
 
 def init_logger(filepath: str = DEFAULT_LOGFILE):

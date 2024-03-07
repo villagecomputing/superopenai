@@ -1,12 +1,12 @@
 [tool.poetry]
-name = "super-openai"
+name = "superopenai"
 version = "0.1.1"
 description = "Logging and caching superpowers for the openai sdk"
 authors = ["Aman Dhesi <aman@stelolabs.com>"]
 license = "MIT"
 readme = "README.md"
-repository = "https://github.com/villagecomputing/super-openai"
-packages = [{ include = "super_openai" }]
+repository = "https://github.com/villagecomputing/superopenai"
+packages = [{ include = "superopenai" }]
 
 [tool.poetry.dependencies]
 python = "^3.10"
