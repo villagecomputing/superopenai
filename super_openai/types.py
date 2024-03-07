@@ -169,7 +169,15 @@ class ChatCompletionLog:
         table.align = "l"
         messages = []
         for msg in self.input_messages:
-            messages.append(f"- {msg['role']}: {msg['content']}")
+            if msg['content']:
+                messages.append(f"- {msg['role']}: {msg['content']}")
+            if msg['tool_calls']:
+                for tool_call in msg['tool_calls']:
+                    messages.append(
+                        f"- {msg['role']}: ToolCall {tool_call['function']}")
+            if msg['function_call']:
+                messages.append(
+                    f"- {msg['role']}: FunctionCall {msg['function_call']}")
         table.add_row(["Messages", "\n".join(messages)], divider=True)
 
         args = []
@@ -272,7 +280,15 @@ class StreamingChatCompletionLog():
         table.align = "l"
         msgs = []
         for msg in self.input_messages:
-            msgs.append(f"- {msg['role']}: {msg['content']}")
+            if msg['content']:
+                msgs.append(f"- {msg['role']}: {msg['content']}")
+            if msg['tool_calls']:
+                for tool_call in msg['tool_calls']:
+                    msgs.append(
+                        f"- {msg['role']}: ToolCall {tool_call['function']}")
+            if msg['function_call']:
+                msgs.append(
+                    f"- {msg['role']}: FunctionCall {msg['function_call']}")
         table.add_row(["Messages", "\n".join(msgs)], divider=True)
 
         args = []
