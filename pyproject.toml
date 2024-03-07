@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "super-openai"
-version = "0.1.0"
+version = "0.1.1"
 description = "Logging and caching superpowers for the openai sdk"
 authors = ["Aman Dhesi <aman@stelolabs.com>"]
 license = "MIT"
