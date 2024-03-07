@@ -1,23 +1,38 @@
+import os
 import contextvars
+import asyncio
+from datetime import datetime
 from typing import List, Union
 from openai.resources.chat.completions import Completions, AsyncCompletions
 from .types import *
 from .wrap_openai import wrap_create, wrap_acreate
 
 
+DEFAULT_LOGFILE = f"./logs/{datetime.date(datetime.now())}.log"
+
+
 class Logger:
-    def __init__(self, set_current: bool = True):
+    def __init__(self,  filepath: str = None, set_current: bool = True):
         self.logs: List[Union[ChatCompletionLog,
                               StreamingChatCompletionLog]] = []
+        if filepath:
+            os.makedirs(os.path.dirname(filepath), exist_ok=True)
+            self.filestream = open(filepath, "a")
+            self.filestream.write(
+                f"Starting super-openai logger at {datetime.now()}\n")
         if set_current:
             self.start()
 
     def log(self, log: Union[ChatCompletionLog, StreamingChatCompletionLog]):
         self.logs.append(log)
+        if self.filestream and not self.filestream.closed:
+            self.filestream.write(str(log) + "\n")
 
     def summary_statistics(self) -> SummaryStatistics:
         num_calls = len(self.logs)
         num_cached = sum(log.cached for log in self.logs)
+        cost = sum(
+            log.metadata.cost for log in self.logs if log.metadata.cost is not None)
         prompt_tokens = sum(
             log.metadata.prompt_tokens for log in self.logs if log.metadata.prompt_tokens is not None)
         completion_tokens = sum(
@@ -50,6 +65,7 @@ class Logger:
         return SummaryStatistics(
             num_calls=num_calls,
             num_cached=num_cached,
+            cost=cost,
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
             total_tokens=total_tokens,
@@ -63,10 +79,16 @@ class Logger:
         )
 
     def start(self):
+        if self.filestream and self.filestream.closed:
+            self.filestream.open()
         if current_logger() != self:
             self._context_token = _state.current_logger.set(self)
 
     def end(self):
+        if self.filestream and not self.filestream.closed:
+            self.filestream.write(
+                f"Ending super-openai logger at {datetime.now()}\n\n")
+            self.filestream.close()
         if current_logger() == self:
             _state.current_logger.reset(self._context_token)
 
@@ -104,6 +126,7 @@ class SuperOpenAIState:
 
     def _wrap(self):
         if self.wrapped:
+            # Prevent double-wrapping
             return
         create_fn = Completions.create
         acreate_fn = AsyncCompletions.create
@@ -117,12 +140,25 @@ class SuperOpenAIState:
             "super_openai_current_logger", default=NOOP_LOGGER)
 
 
-def init_logger():
-    return Logger()
+def init_logger(filepath: str = DEFAULT_LOGFILE):
+    return Logger(filepath)
 
 
 def current_logger() -> Logger:
     return _state.current_logger.get()
+
+
+def logged(fn):
+    if asyncio.iscoroutinefunction(fn):
+        async def async_wrapper(*args, **kwargs):
+            async with init_logger() as logger:
+                return await fn(*args, **kwargs), logger
+        return async_wrapper
+    else:
+        def wrapper(*args, **kwargs):
+            with init_logger() as logger:
+                return fn(*args, **kwargs), logger
+        return wrapper
 
 
 _state: Optional[SuperOpenAIState] = None

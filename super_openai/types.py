@@ -1,6 +1,6 @@
 import time
 import dataclasses
-from typing import Dict, List, Union, Iterable, Optional, overload, TypedDict
+from typing import Dict, List, Union, Iterable, Optional, TypedDict
 from typing_extensions import Literal
 from openai._types import NOT_GIVEN, Body, Query, Headers, NotGiven
 from openai.types.chat import (
@@ -15,6 +15,7 @@ from openai.types.chat.chat_completion import Choice
 from openai.types.chat.chat_completion_chunk import Choice as ChunkChoice
 import httpx
 from prettytable import PrettyTable
+from super_openai.estimator import num_tokens_from_messages, get_cost
 
 ModelType = Union[
     str,
@@ -69,6 +70,7 @@ class ChatCompletionCreateOptionalArgs(TypedDict, total=False):
 class SummaryStatistics:
     num_calls: int
     num_cached: int
+    cost: float
     prompt_tokens: int
     completion_tokens: int
     total_tokens: int
@@ -86,6 +88,7 @@ class SummaryStatistics:
         table.horizontal_char = "-"
         table.add_row(["Number of Calls", self.num_calls])
         table.add_row(["Number Cached", self.num_cached], divider=True)
+        table.add_row(["Cost", f"${self.cost}"], divider=True)
         table.add_row(["Prompt Tokens", self.prompt_tokens])
         table.add_row(["Completion Tokens", self.completion_tokens])
         table.add_row(["Total Tokens", self.total_tokens], divider=True)
@@ -109,9 +112,12 @@ class ChatCompletionLogMetadata:
     prompt_tokens: Optional[int] = None
     completion_tokens: Optional[int] = None
     total_tokens: Optional[int] = None
+    cost: Optional[float] = None
 
     def __str__(self) -> str:
         result = []
+        if self.cost is not None:
+            result.append(f"- Cost: ${self.cost}")
         if self.prompt_tokens is not None:
             result.append(f"- Prompt tokens: {self.prompt_tokens}")
         if self.completion_tokens is not None:
@@ -139,17 +145,20 @@ class ChatCompletionLog:
                cached: bool,
                start_time: float
                ):
+        prompt_tokens = response.usage.prompt_tokens
+        completion_tokens = response.usage.completion_tokens
+        model = params.get("model")
         return cls(
             input_messages=messages,
             input_args=params,
-            # for now, we don't handle tools/function calls
             output=response.choices,
             metadata=ChatCompletionLogMetadata(
-                prompt_tokens=response.usage.prompt_tokens,
-                completion_tokens=response.usage.completion_tokens,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
                 total_tokens=response.usage.total_tokens,
                 start_time=start_time,
-                latency=time.time() - start_time
+                latency=time.time() - start_time,
+                cost=get_cost(prompt_tokens, completion_tokens, model)
             ),
             cached=cached
         )
@@ -160,7 +169,15 @@ class ChatCompletionLog:
         table.align = "l"
         messages = []
         for msg in self.input_messages:
-            messages.append(f"- {msg['role']}: {msg['content']}")
+            if msg['content']:
+                messages.append(f"- {msg['role']}: {msg['content']}")
+            if msg['tool_calls']:
+                for tool_call in msg['tool_calls']:
+                    messages.append(
+                        f"- {msg['role']}: ToolCall {tool_call['function']}")
+            if msg['function_call']:
+                messages.append(
+                    f"- {msg['role']}: FunctionCall {msg['function_call']}")
         table.add_row(["Messages", "\n".join(messages)], divider=True)
 
         args = []
@@ -170,8 +187,15 @@ class ChatCompletionLog:
 
         outputs = []
         for choice in self.output:
-            outputs.append(
-                f"- {choice.message.role}: {choice.message.content}")
+            content = None
+            if choice.message.content:
+                content = f"- {choice.message.role}: {choice.message.content}"
+            elif choice.message.tool_calls:
+                content = f"- {choice.message.role}: {choice.message.tool_calls}"
+            elif choice.message.function_call:
+                content = f"- {choice.message.role}: {choice.message.function_call}"
+            if content:
+                outputs.append(content)
         table.add_row(["Output", "\n".join(outputs)], divider=True)
         table.add_row(["Metadata", str(self.metadata)], divider=True)
         table.add_row(["Cached", str(self.cached)])
@@ -195,18 +219,60 @@ class StreamingChatCompletionLog():
                cached: bool,
                start_time: float
                ):
+        output = [r.choices for r in all_responses]
+        model = params.get("model")
+        prompt_tokens = num_tokens_from_messages(messages, model)
+        _, completion_tokens = StreamingChatCompletionLog._recover_outputs(
+            output)
         return cls(
             input_messages=messages,
             input_args=params,
-            output=[r.choices for r in all_responses],
+            output=output,
             metadata=ChatCompletionLogMetadata(
-                # The openai api doesn't return token counts for streaming
-                # TODO: implement manual token count calculation for streaming
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                total_tokens=prompt_tokens + completion_tokens,
                 start_time=start_time,
-                latency=time.time() - start_time
+                latency=time.time() - start_time,
+                cost=get_cost(prompt_tokens, completion_tokens, model)
             ),
             cached=cached
         )
+
+    @staticmethod
+    def _recover_outputs(output: List[List[ChunkChoice]]):
+        # NOTE: completion tokens are probably being undercounted right now
+        completion_tokens = 0
+        max_index = max(
+            choice.index for chunk in output for choice in chunk)
+        recovered = [{} for _ in range(max_index + 1)]
+        for chunk in output:
+            for choice in chunk:
+                idx = choice.index
+                delta = choice.delta
+                if delta.content:
+                    completion_tokens += 1
+                    recovered[idx]['content'] = recovered[idx].get(
+                        'content', "") + delta.content
+                if delta.role:
+                    recovered[idx]['role'] = delta.role
+                if delta.function_call:
+                    recovered[idx]['function_call'] = delta.function_call
+                if delta.tool_calls:
+                    if not recovered[idx].get('tool_calls'):
+                        recovered[idx]['tool_calls'] = [
+                            {}] * len(delta.tool_calls)
+                    for tool_delta in delta.tool_calls:
+                        completion_tokens += 1
+                        if tool_delta.function:
+                            tool_idx = tool_delta.index
+                            if tool_delta.function.name:
+                                recovered[idx]['tool_calls'][tool_idx]['name'] = tool_delta.function.name
+                            if tool_delta.function.arguments:
+                                recovered[idx]['tool_calls'][tool_idx]['arguments'] = recovered[idx]['tool_calls'][tool_idx].get(
+                                    "arguments", "") + tool_delta.function.arguments
+
+        return recovered, completion_tokens
 
     def __str__(self) -> str:
         table = PrettyTable()
@@ -214,7 +280,15 @@ class StreamingChatCompletionLog():
         table.align = "l"
         msgs = []
         for msg in self.input_messages:
-            msgs.append(f"- {msg['role']}: {msg['content']}")
+            if msg['content']:
+                msgs.append(f"- {msg['role']}: {msg['content']}")
+            if msg['tool_calls']:
+                for tool_call in msg['tool_calls']:
+                    msgs.append(
+                        f"- {msg['role']}: ToolCall {tool_call['function']}")
+            if msg['function_call']:
+                msgs.append(
+                    f"- {msg['role']}: FunctionCall {msg['function_call']}")
         table.add_row(["Messages", "\n".join(msgs)], divider=True)
 
         args = []
@@ -222,14 +296,19 @@ class StreamingChatCompletionLog():
             args.append(f"- {arg}: {value}")
         table.add_row(["Arguments", "\n".join(args)], divider=True)
 
+        recovered, _ = StreamingChatCompletionLog._recover_outputs(self.output)
         outputs = []
-        num_responses = len(self.output[0])
-        for index in range(num_responses):
-            concatenated_content = "".join(
-                [chunk_list[index].delta.content or "" if
-                 index < len(chunk_list) else ""
-                 for chunk_list in self.output])
-            outputs.append(f"- {concatenated_content}")
+        for r in recovered:
+            if r.get('content'):
+                outputs.append(f"- {r.get('role')}: {r.get('content')}")
+            if r.get('function_call'):
+                outputs.append(
+                    f"- {r.get('role')}: {r.get('function_call')}")
+            if r.get('tool_calls'):
+                for tool in r.get('tool_calls'):
+                    outputs.append(
+                        f"- {r.get('role')}: ToolCall {tool})")
+
         table.add_row(["Output", "\n".join(outputs)], divider=True)
         table.add_row(["Metadata", str(self.metadata)], divider=True)
         table.add_row(["Cached", str(self.cached)], divider=True)
