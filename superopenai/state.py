@@ -8,16 +8,18 @@ from .types import *
 from .wrap_openai import wrap_create, wrap_acreate
 
 
-DEFAULT_LOGFILE = f"./logs/{datetime.date(datetime.now())}.log"
+DEFAULT_LOG_DIR = "./logs/"
+LOGFILE_NAME = f"{datetime.date(datetime.now())}.log"
 
 
 class Logger:
-    def __init__(self,  filepath: str = None, set_current: bool = True):
+    def __init__(self,  log_directory: str = None, set_current: bool = True):
         self.logs: List[Union[ChatCompletionLog,
                               StreamingChatCompletionLog]] = []
-        if filepath:
-            os.makedirs(os.path.dirname(filepath), exist_ok=True)
-            self.filestream = open(filepath, "a")
+        if log_directory:
+            os.makedirs(os.path.dirname(log_directory), exist_ok=True)
+            log_filepath = os.path.join(log_directory, LOGFILE_NAME)
+            self.filestream = open(log_filepath, "a")
             self.filestream.write(
                 f"Starting superopenai logger at {datetime.now()}\n")
         if set_current:
@@ -81,6 +83,8 @@ class Logger:
     def start(self):
         if self.filestream and self.filestream.closed:
             self.filestream.open()
+            self.filestream.write(
+                f"Starting superopenai logger at {datetime.now()}\n")
         if current_logger() != self:
             self._context_token = _state.current_logger.set(self)
 
@@ -140,8 +144,8 @@ class SuperOpenAIState:
             "superopenai_current_logger", default=NOOP_LOGGER)
 
 
-def init_logger(filepath: str = DEFAULT_LOGFILE):
-    return Logger(filepath)
+def init_logger(log_directory: str = DEFAULT_LOG_DIR):
+    return Logger(log_directory)
 
 
 def current_logger() -> Logger:

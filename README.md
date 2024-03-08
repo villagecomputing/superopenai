@@ -137,6 +137,13 @@ Every openai chat completion request will not be logged and logs will be stored 
 - `metadata`: metadata about the request
 - `cached`: whether the response was returned from cache
 
+By default all logs are stored in the `logs` folder in your project root. A new logfile is created for every day, so today's logs will be stored in `./logs/2024-03-08.log`. You can change the log directory when calling `init_logger`:
+
+```python
+with init_logger("/path/to/log/dir") as logger:
+  # your code
+```
+
 **Token usage, cost and latency**
 
 Inside the `metadata` field of each log you will find information about how many prompt and completions tokens were used, what the total cost was and the latency, ie. time between request being sent and response being received.
@@ -144,8 +151,6 @@ Inside the `metadata` field of each log you will find information about how many
 Cost is calculated based on prompt and completion token prices tokens defined in `estimator.py`. Only OpenAI models have pre-defined prices. If you're using non-OpenAI models, you can optionally specify a price dictionary when initializing `superopenai`. Prices are specified per 1M tokens in a tuple representing prompt and completion tokens respectively.
 
 ```python
-from superopenai import init_superopenai
-
 init_superopenai(cost_dict={
   'mistralai/Mixtral-8x7B-Instruct-v0.1': [0.5, 1.0]
 })
@@ -215,8 +220,6 @@ Caching is automatically enabled when you called `init_superopenai` and applies 
 You can disable caching or change the cache size (default 1000) when initializating superopenai:
 
 ```python
-from superopenai import init_superopenai
-
 init_superopenai(enable_caching=True, cache_size=100)
 ```
 
