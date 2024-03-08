@@ -65,11 +65,12 @@ with init_logger() as logger:
 +-----------+----------------------------------------------+
 | Output    | - assistant: The capital of France is Paris. |
 +-----------+----------------------------------------------+
-| Metadata  | - Prompt tokens: 14                          |
+| Metadata  | - Cost: $0.00035                             |
+|           | - Prompt tokens: 14                          |
 |           | - Completion tokens: 7                       |
 |           | - Total tokens: 21                           |
-|           | - Start time: 1709679680.8683982             |
-|           | - Latency: 0.9150938987731934                |
+|           | - Start time: 1709914488.7480488             |
+|           | - Latency: 0.7773971557617188                |
 +-----------+----------------------------------------------+
 | Cached    | False                                        |
 +-----------+----------------------------------------------+
@@ -103,11 +104,12 @@ logger.end()
 +-----------+----------------------------------------------+
 | Output    | - assistant: The capital of France is Paris. |
 +-----------+----------------------------------------------+
-| Metadata  | - Prompt tokens: 14                          |
+| Metadata  | - Cost: $0.00035                             |
+|           | - Prompt tokens: 14                          |
 |           | - Completion tokens: 7                       |
 |           | - Total tokens: 21                           |
-|           | - Start time: 1709679731.876042              |
-|           | - Latency: 3.62396240234375e-05              |
+|           | - Start time: 1709914489.536513              |
+|           | - Latency: 3.981590270996094e-05             |
 +-----------+----------------------------------------------+
 | Cached    | True                                         |
 +-----------+----------------------------------------------+
@@ -185,6 +187,8 @@ with init_logger() as logger:
 |      Number of Calls       |             1              |
 |       Number Cached        |             1              |
 +----------------------------+----------------------------+
+|            Cost            |          $0.00035          |
++----------------------------+----------------------------+
 |       Prompt Tokens        |             14             |
 |     Completion Tokens      |             7              |
 |        Total Tokens        |             21             |
@@ -193,9 +197,9 @@ with init_logger() as logger:
 | Completion Tokens by Model | {'gpt-4-1106-preview': 7}  |
 |   Total Tokens by Model    | {'gpt-4-1106-preview': 21} |
 +----------------------------+----------------------------+
-|       Total Latency        |    3.62396240234375e-05    |
-|      Average Latency       |    3.62396240234375e-05    |
-|  Average Latency (Cached)  |    3.62396240234375e-05    |
+|       Total Latency        |   3.981590270996094e-05    |
+|      Average Latency       |   3.981590270996094e-05    |
+|  Average Latency (Cached)  |   3.981590270996094e-05    |
 | Average Latency (Uncached) |             0              |
 +----------------------------+----------------------------+
 ```
@@ -223,12 +227,9 @@ superopenai is fully compatible with `langchain`, `llama-index`, `instructor`, `
 This is particularly useful when you're doing local development with `langchain` and want to quickly inspect your chain runs, or understand what requests were made under the hood. For example:
 
 ```python
-from superopenai import init_superopenai, init_logger
 from langchain.prompts import PromptTemplate
 from langchain_experimental.smart_llm import SmartLLMChain
 from langchain_openai import ChatOpenAI
-
-init_superopenai()
 
 hard_question = "I have a 12 liter jug and a 6 liter jug.\
 I want to measure 6 liters. How do I do it?"
@@ -251,18 +252,20 @@ Output:
 |      Number of Calls       |            4            |
 |       Number Cached        |            0            |
 +----------------------------+-------------------------+
-|       Prompt Tokens        |           1183          |
-|     Completion Tokens      |           591           |
-|        Total Tokens        |           1774          |
+|            Cost            |        $0.001318        |
 +----------------------------+-------------------------+
-|   Prompt Tokens by Model   | {'gpt-3.5-turbo': 1183} |
-| Completion Tokens by Model |  {'gpt-3.5-turbo': 591} |
-|   Total Tokens by Model    | {'gpt-3.5-turbo': 1774} |
+|       Prompt Tokens        |           1094          |
+|     Completion Tokens      |           514           |
+|        Total Tokens        |           1608          |
 +----------------------------+-------------------------+
-|       Total Latency        |    8.826239109039307    |
-|      Average Latency       |    2.2065597772598267   |
+|   Prompt Tokens by Model   | {'gpt-3.5-turbo': 1094} |
+| Completion Tokens by Model |  {'gpt-3.5-turbo': 514} |
+|   Total Tokens by Model    | {'gpt-3.5-turbo': 1608} |
++----------------------------+-------------------------+
+|       Total Latency        |    10.062347888946533   |
+|      Average Latency       |    2.5155869722366333   |
 |  Average Latency (Cached)  |            0            |
-| Average Latency (Uncached) |    2.2065597772598267   |
+| Average Latency (Uncached) |    2.5155869722366333   |
 +----------------------------+-------------------------+
 ```
 

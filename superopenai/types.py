@@ -169,15 +169,15 @@ class ChatCompletionLog:
         table.align = "l"
         messages = []
         for msg in self.input_messages:
-            if msg['content']:
+            if msg.get('content'):
                 messages.append(f"- {msg['role']}: {msg['content']}")
-            if msg['tool_calls']:
-                for tool_call in msg['tool_calls']:
+            if msg.get('tool_calls'):
+                for tool_call in msg.get('tool_calls'):
                     messages.append(
-                        f"- {msg['role']}: ToolCall {tool_call['function']}")
-            if msg['function_call']:
+                        f"- {msg.get('role')}: ToolCall {tool_call.get('function')}")
+            if msg.get('function_call'):
                 messages.append(
-                    f"- {msg['role']}: FunctionCall {msg['function_call']}")
+                    f"- {msg.get('role')}: FunctionCall {msg.get('function_call')}")
         table.add_row(["Messages", "\n".join(messages)], divider=True)
 
         args = []
