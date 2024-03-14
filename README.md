@@ -2,24 +2,28 @@
 
 _superopenai is a minimal convenience library for logging and caching LLM requests and responses for visibility and rapid iteration during development._
 
-[Star us on Github!](https://github.com/villagecomputing/superopenai)
+<div style="text-align: center;">
 
-[![Twitter Follow](https://img.shields.io/twitter/follow/villagecompute?style=social)](https://twitter.com/villagecompute)
+[Star us on Github](https://github.com/villagecomputing/superopenai) &nbsp; [Read the blogpost](https://amandhe.github.io/superopenai/llm/python/openai/2024/03/05/introducing-super-openai.html)
+
+[![Twitter Follow](https://img.shields.io/twitter/follow/amansplaining?style=social)](https://twitter.com/amansplaining)
 [![Downloads](https://img.shields.io/pypi/dm/superopenai.svg)](https://pypi.python.org/pypi/superopenai)
+
+<img src="./readme_img.png" style="width: 40%;" /></div>
 
 ## Introduction
 
 superopenai was built to solve the following problems:
 
-**Prompt and request visibility**. Many popular libraries like `langchain`, `guardrails`, `instructor` modify your prompts or even make additional requests under the hood. Sometimes this is useful, sometimes it's counter-productive. We believe it's good to adopt a "[show me the prompt](https://hamel.dev/blog/posts/prompt/)" attitude.
+**Prompt and request visibility** &mdash; LLM libraries like `langchain`, `guardrails`, `instructor` modify your prompts or even make additional requests under the hood. Sometimes this is useful, sometimes it's counter-productive. We think it's good to adopt a "[show me the prompt](https://hamel.dev/blog/posts/prompt/)" attitude.
 
-**Cost and latency tracking**. How much did my requests cost? How long did they take? These are important factors that affect the quality and feasibility of your software. Especially when you're chaining multiple LLM calls or building complex agent flows, it's important keep track of performance and understand which step is the bottleneck. This is useful both in development and production.
+**Debugging** &mdash; Complex chains or agents go wrong because of cascading failure. To debug the failure we need to inspect intermediate results and identify the source of error, then improve the prompt, try a different model, etc. It starts with logging and eyeballing the sequence of requests.
 
-**Repeated identical requests**. During development, we often find ourselves changing one part of a pipeline and having to re-execute every LLM call on the entire dataset to see the new output. This unnecessarily slows down the development and iteration cycle. Caching ensures only the parts that change actually make new requests.
+**Quality-cost-speed tradeoff** &mdash; Better models, multi-step prompting, longer prompts can improve quality of results but at the expense of cost and speed. View cost, token usage and latency in your logs as you’re developing so you can make this tradeoff ex ante not ex post.
 
-**Debugging complex chains/agents**. Complex chains or agents go wrong because of cascading failure. To debug the failure we need to inspect intermediate results and identify the source of error, then improve the prompt, try a different model, etc. It starts with logging and eyeballing the sequence of requests.
+**Repeated identical requests** &mdash; LLM development is slow because often you change a single prompt or parameter and have to wait for every LLM request to re-run. Can’t iterate quickly if you need to wait that long between experiments. Superopenai caches the last N LLM requests and responses in memory (when `temperature=0`)
 
-**Privacy, security and speed**. Many great tools exist to help you solve the above by sending your data to a remote server. But sometimes you need the data to stay local. Other times, you want to do some quick and dirty development without having to set up an api key, sign up for a service, understand their library and UI.
+**Privacy, security and speed**. Superopenai focuses on local development when you’re just starting a new project, iterating on prompts or playing around. No need to sign up, get api keys, or learn a new interface. Your data never leaves your environment.
 
 ### Installation & basic usage
 

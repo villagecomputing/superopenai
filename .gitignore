@@ -15,5 +15,6 @@ data/**
 dist/**
 
 *.png
+!readme_img.png
 
 logs/**
