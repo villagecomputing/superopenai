@@ -84,6 +84,8 @@ class SummaryStatistics:
 
     def __str__(self) -> str:
         table = PrettyTable()
+        table.field_names = ["Metric", "Value"]
+        table.max_width = 80
         table.header = False
         table.horizontal_char = "-"
         table.add_row(["Number of Calls", self.num_calls])
@@ -165,6 +167,8 @@ class ChatCompletionLog:
 
     def __str__(self) -> str:
         table = PrettyTable()
+        table.field_names = ["Metric", "Value"]
+        table.max_width = 80
         table.header = False
         table.align = "l"
         messages = []
@@ -276,6 +280,8 @@ class StreamingChatCompletionLog():
 
     def __str__(self) -> str:
         table = PrettyTable()
+        table.field_names = ["Metric", "Value"]
+        table.max_width = 80
         table.header = False
         table.align = "l"
         msgs = []
